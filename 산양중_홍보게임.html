@@ -1,0 +1,744 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>산양중에 가볼까? - 산양중학교 홍보 게임</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard-dynamic-subset.min.css">
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html,body { width:100%; height:100%; overflow:hidden; background:#0f172a;
+    font-family:'Pretendard','Malgun Gothic','Apple SD Gothic Neo',sans-serif; }
+  #wrap { position:relative; width:100%; height:100%; display:flex; align-items:center; justify-content:center;
+    padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left); }
+  #stage { position:relative; }
+  #game { background:#bae6fd; display:block; touch-action:manipulation;
+    border-radius:16px; box-shadow:0 20px 40px -10px rgba(0,0,0,.5); }
+
+  /* 일시정지 버튼 (캔버스 우상단) */
+  #pauseBtn { position:absolute; top:10px; right:10px; z-index:5;
+    width:46px; height:46px; border-radius:14px; border:none; cursor:pointer;
+    background:rgba(15,23,42,.55); color:#fff; font-size:20px; line-height:1;
+    backdrop-filter:blur(4px); display:flex; align-items:center; justify-content:center; }
+  #pauseBtn:active { transform:scale(.93); }
+
+  .overlay { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center;
+    justify-content:center; background:rgba(15,23,42,.85); color:#fff; text-align:center;
+    padding:20px; z-index:10; backdrop-filter:blur(5px); overflow-y:auto; }
+  .hidden { display:none !important; }
+
+  h1, .sub, .howto, #quizQ, #quizInfo, #endSub { word-break:keep-all; overflow-wrap:break-word; }
+
+  h1 { font-size:clamp(26px,6vw,46px); margin-bottom:12px; color:#fbcfe8;
+    text-shadow:0 4px 10px rgba(0,0,0,.35); letter-spacing:-1px; font-weight:800; }
+  .sub { font-size:clamp(14px,3.4vw,18px); color:#e2e8f0; margin-bottom:22px; line-height:1.65; }
+
+  .btn { background:linear-gradient(180deg,#f472b6,#db2777); color:#fff; border:none;
+    min-height:52px; padding:13px 38px; font-size:clamp(16px,3.8vw,21px); font-weight:700;
+    border-radius:50px; cursor:pointer; box-shadow:0 4px 0 #9d174d, 0 10px 20px -6px rgba(219,39,119,.5);
+    transition:all .06s; font-family:inherit; }
+  .btn:active { transform:translateY(3px); box-shadow:0 1px 0 #9d174d; }
+  .btn.blue { background:linear-gradient(180deg,#60a5fa,#2563eb); box-shadow:0 4px 0 #1d4ed8, 0 10px 20px -6px rgba(37,99,235,.5); }
+  .btn.blue:active { box-shadow:0 1px 0 #1d4ed8; }
+  .btn.ghost { background:rgba(255,255,255,.1); box-shadow:0 4px 0 rgba(255,255,255,.15); }
+  .btn.ghost:active { box-shadow:0 1px 0 rgba(255,255,255,.15); }
+
+  .btnrow { display:flex; gap:12px; flex-wrap:wrap; justify-content:center; }
+  .btncol { display:flex; flex-direction:column; gap:14px; width:min(300px,80vw); }
+  .btncol .btn { width:100%; }
+
+  .howto { margin-top:22px; font-size:clamp(12px,3vw,14px); color:#94a3b8; line-height:1.9;
+    background:rgba(255,255,255,.06); padding:12px 22px; border-radius:16px; }
+  .legend { display:flex; gap:10px; margin-top:16px; flex-wrap:wrap; justify-content:center;
+    font-size:clamp(11px,2.8vw,13px); color:#fce7f3; }
+  .legend span { background:rgba(255,255,255,.14); padding:7px 14px; border-radius:20px; font-weight:600; }
+
+  /* 퀴즈 */
+  #quizBox { background:#fff; color:#1e293b; border-radius:24px; padding:26px 22px;
+    max-width:500px; width:94%; box-shadow:0 24px 50px -10px rgba(0,0,0,.55); }
+  #quizTag { display:inline-block; background:#db2777; color:#fff; font-weight:700;
+    font-size:12px; padding:5px 14px; border-radius:12px; margin-bottom:14px; letter-spacing:.5px; }
+  #quizQ { font-size:clamp(16px,4vw,20px); font-weight:800; line-height:1.5; margin-bottom:16px; }
+  .qbtn { display:block; width:100%; margin:8px 0; min-height:50px; padding:12px 16px; border-radius:14px;
+    border:2px solid #e2e8f0; background:#f8fafc; font-size:clamp(14px,3.6vw,17px); font-weight:600;
+    cursor:pointer; text-align:left; transition:all .12s; font-family:inherit; color:#1e293b; }
+  .qbtn:hover { border-color:#f472b6; background:#fdf2f8; }
+  .qbtn.correct { background:#dcfce7; border-color:#22c55e; color:#15803d; }
+  .qbtn.wrong { background:#fee2e2; border-color:#ef4444; color:#b91c1c; }
+  #quizInfo { margin-top:14px; font-size:clamp(13px,3.2vw,15px); color:#334155; background:#f0f9ff;
+    border:1px solid #bae6fd; border-radius:12px; padding:12px 14px; line-height:1.65; text-align:left; }
+  #quizNext { margin-top:16px; }
+
+  #resultStats { font-size:clamp(15px,3.8vw,19px); line-height:2; margin-bottom:16px; color:#e2e8f0; }
+  #resultStats b { color:#fbbf24; }
+  .slogan { margin-top:18px; font-size:clamp(12px,3.2vw,16px); color:#fbcfe8; font-style:italic; line-height:1.7; }
+  .credit { margin-top:14px; font-size:11px; color:rgba(255,255,255,.4); }
+
+  /* 랭킹 */
+  #rankEntry { display:flex; gap:8px; margin:4px 0 16px; flex-wrap:wrap; justify-content:center; }
+  #nickInput { min-height:50px; padding:11px 18px; border-radius:30px; border:2px solid #60a5fa; background:#fff;
+    font-size:clamp(14px,3.6vw,17px); font-family:inherit; width:min(220px,52vw); text-align:center; color:#1e293b; }
+  #nickInput:focus { outline:none; border-color:#f472b6; box-shadow:0 0 0 4px rgba(244,114,182,.25); }
+  #rankScr { z-index:20; }
+  #rankBoard { background:#fff; color:#1e293b; border-radius:24px; padding:24px 20px;
+    max-width:440px; width:94%; max-height:78vh; overflow-y:auto; box-shadow:0 24px 50px -10px rgba(0,0,0,.55); }
+  #rankBoard h2 { font-size:clamp(18px,4.6vw,24px); color:#0f172a; margin-bottom:4px; font-weight:800; }
+  #rankMode { font-size:12px; color:#64748b; margin-bottom:12px; }
+  #rankList { list-style:none; text-align:left; }
+  #rankList li { display:flex; align-items:center; gap:10px; padding:10px 12px; border-radius:12px;
+    font-size:clamp(14px,3.6vw,17px); font-weight:600; }
+  #rankList li:nth-child(odd) { background:#f1f5f9; }
+  #rankList li .rk { width:34px; text-align:center; font-weight:800; color:#db2777; flex-shrink:0; }
+  #rankList li .nm { flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  #rankList li .sc { color:#1d4ed8; font-weight:800; }
+  #rankList li.me { background:#fdf2f8; outline:2px solid #f472b6; }
+  #rankList .empty { color:#94a3b8; justify-content:center; }
+
+  /* 좁은 세로 화면(스마트폰) 보정 */
+  @media (max-width:520px) {
+    .howto { line-height:1.7; padding:10px 14px; }
+    .btn { padding:12px 26px; }
+    #pauseBtn { width:42px; height:42px; top:8px; right:8px; }
+  }
+</style>
+</head>
+<body>
+<div id="wrap">
+  <div id="stage">
+    <canvas id="game"></canvas>
+    <button id="pauseBtn" aria-label="일시정지">⏸</button>
+  </div>
+
+  <!-- 시작 화면 -->
+  <div id="startScr" class="overlay">
+    <h1>🌸 산양중에 가볼까?</h1>
+    <div class="sub">충무교 정류장에서 출발!<br>벚꽃길을 달려 <b>산양중학교</b>까지 가보자!</div>
+    <div class="btnrow">
+      <button class="btn" id="startBtn">게임 시작</button>
+      <button class="btn blue" id="rankViewBtn">🏆 랭킹</button>
+    </div>
+    <div class="legend">
+      <span>🌸 벚꽃 +10</span><span>💯 100원 버스비 +30</span><span>🧧 장학금 +50</span>
+    </div>
+    <div class="howto">
+      ⬆ 점프 : 화면 터치 / 스페이스바 · 위쪽 방향키<br>
+      🚌 버스정류장을 지날 때마다 산양중 퀴즈가 나와요!<br>
+      퀴즈 5개를 모두 지나면 학교에 도착합니다.
+    </div>
+    <div class="credit">통영시 산양중학교 · 2027학년도 신입생 홍보</div>
+  </div>
+
+  <!-- 일시정지 화면 -->
+  <div id="pauseScr" class="overlay hidden">
+    <h1>⏸ 일시정지</h1>
+    <div class="sub">잠깐 쉬어가도 괜찮아요.<br>산양중은 기다려주는 학교니까요 😊</div>
+    <div class="btncol">
+      <button class="btn" id="resumeBtn">▶ 이어서 하기</button>
+      <button class="btn blue" id="restartBtn">🔄 다시 시작하기</button>
+    </div>
+  </div>
+
+  <!-- 퀴즈 화면 -->
+  <div id="quizScr" class="overlay hidden">
+    <div id="quizBox">
+      <span id="quizTag">🚌 정류장 퀴즈</span>
+      <div id="quizQ"></div>
+      <div id="quizA"></div>
+      <div id="quizInfo" class="hidden"></div>
+      <button class="btn blue hidden" id="quizNext">계속 달리기 →</button>
+    </div>
+  </div>
+
+  <!-- 게임오버 / 도착 화면 -->
+  <div id="endScr" class="overlay hidden">
+    <h1 id="endTitle"></h1>
+    <div class="sub" id="endSub"></div>
+    <div id="resultStats"></div>
+    <div id="rankEntry">
+      <input id="nickInput" maxlength="8" placeholder="닉네임 (8자 이내)">
+      <button class="btn blue" id="rankBtn">🏆 랭킹 등록</button>
+    </div>
+    <div class="btnrow">
+      <button class="btn" id="retryBtn">다시 도전!</button>
+      <button class="btn blue" id="rankViewBtn2">🏆 랭킹 보기</button>
+    </div>
+    <div class="slogan">"모두가 오고싶어 하는 학교,<br>꿈과 재능을 키우는 행복한 학교" — 산양중학교</div>
+  </div>
+
+  <!-- 랭킹 보드 -->
+  <div id="rankScr" class="overlay hidden">
+    <div id="rankBoard">
+      <h2>🏆 산양중 명예의 전당</h2>
+      <div id="rankMode"></div>
+      <ol id="rankList"></ol>
+      <button class="btn" id="rankCloseBtn" style="margin-top:16px">닫기</button>
+    </div>
+  </div>
+</div>
+
+<script>
+'use strict';
+/* ================= 기본 설정 (고해상도 렌더링) ================= */
+const cv = document.getElementById('game');
+const ctx = cv.getContext('2d');
+let W = 900, H = 500;
+function resize() {
+  const ww = window.innerWidth, wh = window.innerHeight;
+  const ratio = 9/5;
+  if (ww/wh > ratio) { H = Math.min(wh - 24, 560); W = H*ratio; }
+  else { W = ww - 16; H = W/ratio; }
+  const dpr = Math.min(2, window.devicePixelRatio || 1);   // 레티나/고해상도 대응
+  cv.width = 900*dpr; cv.height = 500*dpr;
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  cv.style.width = W+'px'; cv.style.height = H+'px';
+}
+window.addEventListener('resize', resize); resize();
+
+const GROUND = 400;
+const GRAV = 0.62, JUMP_V = -13.2;
+
+/* ================= 퀴즈 데이터 (홍보자료 기반) ================= */
+const QUIZ = [
+  { q:'산양중학교는 통영의 어떤 자연에 둘러싸여 있을까요?',
+    a:['장군봉과 통영 앞바다','한라산과 제주 바다','지리산 계곡','도심 한복판'], c:0,
+    info:'산양중학교는 통영시 산양읍, 장군봉 산자락과 통영 앞바다가 보이는 자연 속 학교예요! 🏔🌊' },
+  { q:'산양중학교 가는 시내버스 요금은 얼마일까요? (교통카드 기준)',
+    a:['100원','1,000원','1,500원','공짜'], c:0,
+    info:'진짜 단돈 100원! 충무교 정류장에서 약 15~20분, 300번대 등 10개 노선이 다녀요. 🚌' },
+  { q:'산양중학교는 한 학년에 몇 학급일까요?',
+    a:['2학급','5학급','10학급','1학급'], c:0,
+    info:'학년당 2학급의 소규모 학교라 선생님이 모든 학생의 이름을 불러주는 가족 같은 학교예요. 👨‍👩‍👧‍👦' },
+  { q:'매달 1회, 학생회가 직접 기획하는 산양중의 특별한 날은?',
+    a:['프리데이(Free Day)','먼데이','매직데이','홈커밍데이'], c:0,
+    info:'프리데이엔 자유 복장 등교에 시네마 클래스, 워터밤, 복면가왕, e스포츠 대회까지! 전부 학생회가 만들어요. 🎉' },
+  { q:'산양중학교에 입학하면 모든 신입생이 받는 것은?',
+    a:['장학금 30만원','자전거','노트북','교복 10벌'], c:0,
+    info:'입학생 전원 장학금 30만원, 졸업생 전원 10만원! 수업료·교육활동비도 학교가 지원해요. 🧧' },
+  { q:'산양중학교 학생자치회가 경상남도에서 받은 상은?',
+    a:['학생자치 분야 최우수상','청소왕 대상','급식 우수상','지각왕 대상'], c:0,
+    info:'경남 전체에서 인정받은 학생자치회! 행사 기획부터 학교 규칙 제안까지 학생이 직접 해요. 🏆' },
+  { q:'공부가 힘든 학생을 위해 산양중이 운영하는 프로그램은?',
+    a:['두드림 학교 & 학생종합클리닉','야간 자율학습 12시간','숙제 3배 프로그램','없음'], c:0,
+    info:'두드림 학교(소인수 집중 지도)와 학생종합클리닉으로 어떤 학생도 포기하지 않는 학교! 💪' },
+  { q:'산양중학교의 국제교육교류는 어느 나라와 할까요?',
+    a:['일본','브라질','이집트','아이슬란드'], c:0,
+    info:'일본과 국제교육교류를 해요! 과학페어, 해커톤, 승전고를 울려라 등 더 큰 무대도 많아요. ✈️' },
+  { q:'12월에 한 해를 마무리하는 산양중 학생회 축제의 이름은?',
+    a:['희망솔','겨울왕국제','산양페스타','눈꽃제'], c:0,
+    info:'12월엔 학생회 축제 "희망솔"로 한 해를 마무리! 할로윈 코스튬 데이도 있답니다. 🎄' },
+  { q:'봄에 열리는 프리데이 행사로, 학교의 예쁜 풍경을 담는 대회는?',
+    a:['벚꽃 사진 콘테스트','눈사람 대회','단풍 줍기 대회','모래성 쌓기'], c:0,
+    info:'4월엔 벚꽃 사진 콘테스트! 산양중은 봄에 벚꽃이 정말 예쁜 학교예요. 🌸📸' },
+];
+const QUIZ_COUNT = 5;
+
+/* ================= 게임 상태 ================= */
+let state = 'start';                // start | run | pause | quiz | end
+let player, obstacles, items, petals, clouds, dist, score, lives, speed;
+let quizOrder, quizIdx, nextGateDist, segStart, gate, arrived, correctCnt, itemCnt, itemScore;
+let frame = 0, shakeT = 0, inv = 0;
+
+function shuffle(arr){ const a=[...arr]; for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];} return a; }
+
+function reset() {
+  player = { x:130, y:GROUND, vy:0, onGround:true };
+  obstacles = []; items = []; petals = []; gate = null;
+  clouds = Array.from({length:5},()=>({x:Math.random()*900,y:40+Math.random()*110,s:.6+Math.random()*.8}));
+  dist = 0; score = 0; lives = 3; speed = 5.2;
+  quizOrder = shuffle(QUIZ.map((_,i)=>i)).slice(0, QUIZ_COUNT);
+  quizIdx = 0; nextGateDist = 350; segStart = 0; arrived = false;
+  correctCnt = 0; itemCnt = 0; itemScore = 0; inv = 0; shakeT = 0;
+}
+
+/* ================= 입력 ================= */
+function jump() {
+  if (state !== 'run') return;
+  if (player.onGround) { player.vy = JUMP_V; player.onGround = false; }
+}
+window.addEventListener('keydown', e=>{
+  if (e.code==='Space'||e.code==='ArrowUp'){ e.preventDefault(); jump(); }
+  if (e.code==='Escape'||e.code==='KeyP'){ togglePause(); }
+});
+cv.addEventListener('pointerdown', jump);
+
+/* ================= 일시정지 ================= */
+const pauseScr = document.getElementById('pauseScr');
+function togglePause() {
+  if (state === 'run') { state = 'pause'; pauseScr.classList.remove('hidden'); }
+  else if (state === 'pause') { state = 'run'; pauseScr.classList.add('hidden'); }
+}
+document.getElementById('pauseBtn').onclick = (e)=>{ e.stopPropagation(); if (state==='run') togglePause(); };
+document.getElementById('resumeBtn').onclick = ()=> togglePause();
+document.getElementById('restartBtn').onclick = ()=>{
+  pauseScr.classList.add('hidden'); reset(); state = 'run';
+};
+
+/* ================= 스폰 ================= */
+function spawnObstacle() {
+  const t = Math.random();
+  if (t < .45) obstacles.push({type:'rock', x:960, y:GROUND, w:38, h:34});
+  else if (t < .8) obstacles.push({type:'puddle', x:960, y:GROUND, w:64, h:12});
+  else obstacles.push({type:'gull', x:960, y:GROUND-78-Math.random()*40, w:44, h:26, f:0});
+}
+function spawnItem() {
+  const t = Math.random();
+  const y = GROUND - 40 - Math.random()*110;
+  if (t < .55) items.push({type:'flower', x:960, y, v:10});
+  else if (t < .85) items.push({type:'coin', x:960, y, v:30});
+  else items.push({type:'schol', x:960, y, v:50});
+}
+
+/* ================= 업데이트 ================= */
+function update() {
+  frame++;
+  if (state !== 'run') return;
+  dist += speed * 0.14;
+  speed = Math.min(9, 5.2 + dist/300);
+  if (inv > 0) inv--;
+  if (shakeT > 0) shakeT--;
+
+  player.vy += GRAV; player.y += player.vy;
+  if (player.y >= GROUND) { player.y = GROUND; player.vy = 0; player.onGround = true; }
+
+  if (frame % 5 === 0) petals.push({x:Math.random()*900, y:-10, vx:-.6-Math.random(), vy:1+Math.random()*1.4, r:Math.random()*6.28});
+  petals.forEach(p=>{ p.x+=p.vx; p.y+=p.vy; p.r+=.05; });
+  petals = petals.filter(p=>p.y<520);
+  clouds.forEach(c=>{ c.x -= c.s*.4; if (c.x<-120) c.x = 950; });
+
+  if (!gate && !arrived && quizIdx < QUIZ_COUNT && dist >= nextGateDist) gate = {x:960};
+  if (gate) {
+    gate.x -= speed;
+    if (!gate.school && gate.x <= player.x + 10) { gate = null; openQuiz(); return; }
+  }
+
+  if (quizIdx >= QUIZ_COUNT && !arrived) { arrived = true; gate = {x:1000, school:true}; }
+  if (gate && gate.school && gate.x <= player.x + 60) { endGame(true); return; }
+
+  const gateNear = gate && gate.x < 1100;
+  if (!gateNear && frame % Math.max(55, 100 - Math.floor(dist/40)) === 0 && Math.random()<.85) spawnObstacle();
+  if (frame % 75 === 0) spawnItem();
+
+  obstacles.forEach(o=>{ o.x -= speed; if(o.type==='gull'){o.f++; o.x -= 1.2;} });
+  items.forEach(it=> it.x -= speed);
+  obstacles = obstacles.filter(o=>o.x > -80);
+  items = items.filter(it=>it.x > -40);
+
+  const px = player.x, py = player.y;
+  if (inv <= 0) for (const o of obstacles) {
+    const ox1=o.x-o.w/2, ox2=o.x+o.w/2;
+    const oy1=o.y-o.h, oy2=o.y;
+    if (px+14>ox1 && px-14<ox2 && py>oy1 && py-46<oy2) {
+      lives--; inv = 70; shakeT = 14;
+      if (lives<=0) { endGame(false); return; }
+      break;
+    }
+  }
+  items = items.filter(it=>{
+    const dx=it.x-px, dy=it.y-(py-26);
+    if (dx*dx+dy*dy < 42*42) { itemScore += it.v; itemCnt++; return false; }
+    return true;
+  });
+  /* 점수 공식: 거리(1m=1점) + 아이템 + 퀴즈 정답(개당 100점) */
+  score = Math.floor(dist) + itemScore + correctCnt*100;
+}
+
+/* ================= 퀴즈 ================= */
+const quizScr = document.getElementById('quizScr');
+const quizQ = document.getElementById('quizQ'), quizA = document.getElementById('quizA');
+const quizInfo = document.getElementById('quizInfo'), quizNext = document.getElementById('quizNext');
+const quizTag = document.getElementById('quizTag');
+
+function openQuiz() {
+  state = 'quiz';
+  const qz = QUIZ[quizOrder[quizIdx]];
+  quizTag.textContent = `🚌 정류장 퀴즈 ${quizIdx+1} / ${QUIZ_COUNT}`;
+  quizQ.textContent = qz.q;
+  quizA.innerHTML = ''; quizInfo.classList.add('hidden'); quizNext.classList.add('hidden');
+  const order = shuffle(qz.a.map((_,i)=>i));
+  order.forEach(i=>{
+    const b = document.createElement('button');
+    b.className = 'qbtn'; b.textContent = qz.a[i];
+    b.onclick = ()=>{
+      [...quizA.children].forEach(x=>x.disabled=true);
+      if (i === qz.c) { b.classList.add('correct'); correctCnt++; score += 100; /* 화면 즉시 반영 */ }
+      else {
+        b.classList.add('wrong');
+        [...quizA.children].find(x=>x.textContent===qz.a[qz.c]).classList.add('correct');
+      }
+      quizInfo.textContent = qz.info; quizInfo.classList.remove('hidden');
+      quizNext.classList.remove('hidden');
+    };
+    quizA.appendChild(b);
+  });
+  quizScr.classList.remove('hidden');
+}
+quizNext.onclick = ()=>{
+  quizScr.classList.add('hidden');
+  quizIdx++;
+  segStart = dist; nextGateDist = dist + 280 + Math.random()*80;
+  obstacles = []; inv = 50;
+  state = 'run';
+};
+
+/* ================= 랭킹 시스템 ================= */
+/* ★ Firebase 공용 랭킹을 켜려면 아래 null 자리에 Firebase 콘솔의 설정 객체를 붙여넣으세요.
+   예) const FIREBASE_CONFIG = { apiKey:"...", authDomain:"...", projectId:"...", ... };
+   비워두면(null) 이 기기에만 저장되는 로컬 랭킹으로 작동합니다. */
+const FIREBASE_CONFIG = {
+  apiKey: "AIzaSyC752c9Q4HoE-GtO6vy4ACGPOcvJQM5xxg",
+  authDomain: "sanyang-gmae.firebaseapp.com",
+  projectId: "sanyang-gmae",
+  storageBucket: "sanyang-gmae.firebasestorage.app",
+  messagingSenderId: "88363386943",
+  appId: "1:88363386943:web:e27a92d013bcb0ea5a108a",
+  measurementId: "G-FRZJD3YMCP"
+};
+
+let db = null, fbReady = false, registered = false;
+
+function initFirebase() {
+  if (!FIREBASE_CONFIG) return;
+  const s1 = document.createElement('script');
+  s1.src = 'https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js';
+  s1.onload = () => {
+    const s2 = document.createElement('script');
+    s2.src = 'https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js';
+    s2.onload = () => {
+      try {
+        firebase.initializeApp(FIREBASE_CONFIG);
+        db = firebase.firestore(); fbReady = true;
+      } catch(e) { console.error('Firebase 초기화 실패:', e); }
+    };
+    document.head.appendChild(s2);
+  };
+  document.head.appendChild(s1);
+}
+initFirebase();
+
+function localRanks() {
+  try { return JSON.parse(localStorage.getItem('sanyang_rank') || '[]'); }
+  catch(e) { return []; }
+}
+async function saveScore(name, sc) {
+  if (fbReady) {
+    try { await db.collection('scores').add({ name, score: sc, ts: Date.now() }); return true; }
+    catch(e) { console.error('온라인 저장 실패, 로컬로 저장:', e); }
+  }
+  const r = localRanks();
+  r.push({ name, score: sc, ts: Date.now() });
+  r.sort((a,b) => b.score - a.score);
+  try { localStorage.setItem('sanyang_rank', JSON.stringify(r.slice(0,50))); } catch(e) {}
+  return false;
+}
+async function topScores(n = 10) {
+  if (fbReady) {
+    try {
+      const q = await db.collection('scores').orderBy('score','desc').limit(n).get();
+      return q.docs.map(d => d.data());
+    } catch(e) { console.error(e); }
+  }
+  return localRanks().slice(0, n);
+}
+async function showRankBoard(highlight) {
+  document.getElementById('rankMode').textContent =
+    fbReady ? '🌐 전체 공용 랭킹 (실시간)' : '📱 이 기기의 랭킹 (Firebase 연결 시 전체 랭킹으로 전환)';
+  const list = document.getElementById('rankList');
+  list.innerHTML = '<li class="empty">불러오는 중...</li>';
+  document.getElementById('rankScr').classList.remove('hidden');
+  const rows = await topScores(10);
+  list.innerHTML = '';
+  if (!rows.length) { list.innerHTML = '<li class="empty">아직 기록이 없어요. 1등에 도전!</li>'; return; }
+  const medals = ['🥇','🥈','🥉'];
+  rows.forEach((r, i) => {
+    const li = document.createElement('li');
+    if (highlight && r.name === highlight.name && r.score === highlight.score) li.className = 'me';
+    li.innerHTML = `<span class="rk">${medals[i] || (i+1)}</span>` +
+      `<span class="nm"></span><span class="sc">${Math.floor(r.score)}점</span>`;
+    li.querySelector('.nm').textContent = r.name;   // XSS 방지: 텍스트로만 삽입
+    list.appendChild(li);
+  });
+}
+document.getElementById('rankViewBtn').onclick = () => showRankBoard();
+document.getElementById('rankViewBtn2').onclick = () => showRankBoard();
+document.getElementById('rankCloseBtn').onclick = () => document.getElementById('rankScr').classList.add('hidden');
+document.getElementById('rankBtn').onclick = async () => {
+  if (registered) return;
+  const inp = document.getElementById('nickInput');
+  const name = (inp.value || '').trim().slice(0,8) || '익명';
+  registered = true;
+  const btn = document.getElementById('rankBtn');
+  btn.textContent = '등록 완료!'; btn.disabled = true;
+  const sc = Math.floor(score);
+  await saveScore(name, sc);
+  showRankBoard({ name, score: sc });
+};
+
+/* ================= 종료 ================= */
+function endGame(win) {
+  state = 'end';
+  /* 최종 점수 = 거리(1m=1점) + 아이템 + 퀴즈(개당 100점) + 도착 보너스 500점 */
+  const dScore = Math.floor(dist), qScore = correctCnt*100, bonus = win ? 500 : 0;
+  score = dScore + itemScore + qScore + bonus;
+  const t = document.getElementById('endTitle'), s = document.getElementById('endSub'),
+        r = document.getElementById('resultStats');
+  if (win) { t.textContent = '🏫 산양중학교 도착!'; t.style.color='#86efac';
+    s.innerHTML = '충무교에서 산양중까지, 무사히 도착했어요!<br>우리 산양중학교에서 다시 만나자! 😆'; }
+  else { t.textContent = '앗, 넘어졌다! 🤕'; t.style.color='#fca5a5';
+    s.innerHTML = '괜찮아요, 산양중은 <b>잘해도 힘들어도 함께하는 학교</b>니까!<br>다시 도전해볼까요?'; }
+  r.innerHTML =
+    `🏃 거리 <b>${dScore}</b> &nbsp;+&nbsp; 🌸 아이템 <b>${itemScore}</b> &nbsp;+&nbsp; 🚌 퀴즈 <b>${qScore}</b>` +
+    (win ? ` &nbsp;+&nbsp; 🏫 도착 보너스 <b>${bonus}</b>` : ``) + `<br>` +
+    `🏆 총점 <b>${Math.floor(score)}</b>점<br>` +
+    `<span style="font-size:.85em;color:#94a3b8">퀴즈 정답 ${correctCnt}/${QUIZ_COUNT} · 아이템 ${itemCnt}개 · 달린 거리 ${Math.floor(dist)}m</span>`;
+  registered = false;
+  const rb = document.getElementById('rankBtn');
+  rb.textContent = '🏆 랭킹 등록'; rb.disabled = false;
+  document.getElementById('nickInput').value = '';
+  document.getElementById('endScr').classList.remove('hidden');
+}
+document.getElementById('startBtn').onclick = ()=>{
+  document.getElementById('startScr').classList.add('hidden'); reset(); state='run';
+};
+document.getElementById('retryBtn').onclick = ()=>{
+  document.getElementById('endScr').classList.add('hidden'); reset(); state='run';
+};
+
+/* ================= 그리기 (모던 그래픽) ================= */
+function rr(x,y,w,h,r){ ctx.beginPath(); ctx.roundRect(x,y,w,h,r); }
+function shadow(x,y,w){ ctx.fillStyle='rgba(15,23,42,.14)';
+  ctx.beginPath(); ctx.ellipse(x,GROUND+6,w,5,0,0,7); ctx.fill(); }
+
+function drawBG() {
+  // 하늘 (파스텔 그라데이션)
+  const sky = ctx.createLinearGradient(0,0,0,GROUND);
+  sky.addColorStop(0,'#7dd3fc'); sky.addColorStop(.55,'#bae6fd'); sky.addColorStop(1,'#fdf2f8');
+  ctx.fillStyle = sky; ctx.fillRect(0,0,900,GROUND);
+  // 해 (은은한 광원)
+  const sun = ctx.createRadialGradient(780,80,10,780,80,90);
+  sun.addColorStop(0,'rgba(254,240,138,.95)'); sun.addColorStop(.4,'rgba(254,240,138,.35)'); sun.addColorStop(1,'rgba(254,240,138,0)');
+  ctx.fillStyle = sun; ctx.fillRect(670,0,230,190);
+  ctx.fillStyle = '#fef08a'; ctx.beginPath(); ctx.arc(780,80,26,0,7); ctx.fill();
+  // 구름 (부드러운 덩어리)
+  ctx.fillStyle = 'rgba(255,255,255,.9)';
+  clouds.forEach(c=>{ ctx.beginPath(); ctx.arc(c.x,c.y,16*c.s,0,7);
+    ctx.arc(c.x+18*c.s,c.y+4,13*c.s,0,7); ctx.arc(c.x-18*c.s,c.y+5,12*c.s,0,7);
+    ctx.arc(c.x+2*c.s,c.y-8*c.s,11*c.s,0,7); ctx.fill(); });
+  // 장군봉 (2단 그라데이션 산)
+  let m1 = ctx.createLinearGradient(0,150,0,GROUND-40);
+  m1.addColorStop(0,'#86efac'); m1.addColorStop(1,'#4ade80');
+  ctx.fillStyle = m1;
+  ctx.beginPath(); ctx.moveTo(-50,GROUND-40); ctx.quadraticCurveTo(150,148,350,GROUND-40); ctx.closePath(); ctx.fill();
+  let m2 = ctx.createLinearGradient(0,180,0,GROUND-40);
+  m2.addColorStop(0,'#4ade80'); m2.addColorStop(1,'#22c55e');
+  ctx.fillStyle = m2;
+  ctx.beginPath(); ctx.moveTo(160,GROUND-40); ctx.quadraticCurveTo(440,186,680,GROUND-40); ctx.closePath(); ctx.fill();
+  // 통영 앞바다
+  ctx.fillStyle = '#38bdf8'; ctx.fillRect(0,GROUND-40,900,16);
+  ctx.fillStyle = '#0ea5e9'; ctx.fillRect(0,GROUND-26,900,10);
+  ctx.fillStyle = 'rgba(255,255,255,.5)';
+  for(let i=0;i<8;i++){ const wx=(i*130+frame*1.2)%1040-70;
+    ctx.beginPath(); ctx.ellipse(wx,GROUND-32,12,2,0,0,7); ctx.fill(); }
+  // 요트
+  const bx = 870-(frame*.3)%1050;
+  ctx.fillStyle='#fff'; ctx.beginPath(); ctx.moveTo(bx,GROUND-36); ctx.lineTo(bx+22,GROUND-36);
+  ctx.lineTo(bx+17,GROUND-29); ctx.lineTo(bx+5,GROUND-29); ctx.closePath(); ctx.fill();
+  ctx.fillStyle='#f472b6'; ctx.beginPath(); ctx.moveTo(bx+11,GROUND-37); ctx.lineTo(bx+11,GROUND-52);
+  ctx.lineTo(bx+20,GROUND-40); ctx.closePath(); ctx.fill();
+  // 벚꽃나무 (풍성한 3단 캐노피)
+  for(let i=0;i<4;i++){
+    const tx=((i*260)-(dist*2.2)%1040+1040)%1040-70;
+    ctx.fillStyle='#a16207'; rr(tx-5,GROUND-86,10,62,3); ctx.fill();
+    ctx.fillStyle='#f9a8d4'; ctx.beginPath(); ctx.arc(tx,GROUND-102,30,0,7);
+    ctx.arc(tx-24,GROUND-86,21,0,7); ctx.arc(tx+24,GROUND-86,21,0,7); ctx.fill();
+    ctx.fillStyle='#fbcfe8'; ctx.beginPath(); ctx.arc(tx-8,GROUND-110,16,0,7);
+    ctx.arc(tx+12,GROUND-102,13,0,7); ctx.fill();
+    ctx.fillStyle='#fce7f3'; ctx.beginPath(); ctx.arc(tx-2,GROUND-114,8,0,7); ctx.fill();
+  }
+  // 길 (아스팔트 느낌 + 밝은 연석)
+  ctx.fillStyle = '#f1f5f9'; ctx.fillRect(0,GROUND-16,900,5);
+  ctx.fillStyle = '#cbd5e1'; ctx.fillRect(0,GROUND-11,900,11);
+  const gr = ctx.createLinearGradient(0,GROUND,0,GROUND+100);
+  gr.addColorStop(0,'#22c55e'); gr.addColorStop(1,'#15803d');
+  ctx.fillStyle = gr; ctx.fillRect(0,GROUND,900,100);
+  ctx.fillStyle = 'rgba(255,255,255,.25)';
+  for(let i=0;i<15;i++){ const gx=(i*80-(dist*6)%80); ctx.fillRect(gx,GROUND+14,35,5); }
+  // 흩날리는 벚꽃잎
+  petals.forEach(p=>{
+    ctx.save(); ctx.translate(p.x,p.y); ctx.rotate(p.r);
+    ctx.fillStyle='rgba(249,168,212,.9)';
+    ctx.beginPath(); ctx.ellipse(0,0,5,3,0,0,7); ctx.fill(); ctx.restore();
+  });
+}
+
+function drawPlayer() {
+  const {x,y} = player;
+  shadow(x, GROUND, player.onGround ? 18 : 12);
+  if (inv>0 && Math.floor(frame/4)%2===0) return;   // 피격 깜빡임
+  const legSwing = player.onGround ? Math.sin(frame*.4)*9 : 4;
+  ctx.save(); ctx.translate(x, y-28);
+  // 다리
+  ctx.strokeStyle='#1e293b'; ctx.lineWidth=6; ctx.lineCap='round';
+  ctx.beginPath(); ctx.moveTo(-4,16); ctx.lineTo(-4+legSwing,30); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(4,16); ctx.lineTo(4-legSwing,30); ctx.stroke();
+  // 몸통 (남색 교복 + 흰 카라)
+  rr(-13,-8,26,26,8); ctx.fillStyle='#1e3a8a'; ctx.fill();
+  rr(-13,-8,26,9,5); ctx.fillStyle='#fff'; ctx.fill();
+  // 가방 (핑크)
+  rr(-22,-5,9,17,4); ctx.fillStyle='#db2777'; ctx.fill();
+  rr(-21,-2,7,4,2); ctx.fillStyle='#f9a8d4'; ctx.fill();
+  // 머리
+  ctx.beginPath(); ctx.arc(0,-21,14,0,7); ctx.fillStyle='#ffdfc4'; ctx.fill();
+  ctx.beginPath(); ctx.arc(0,-25,14,3.25,6.15); ctx.fillStyle='#3f2d20'; ctx.fill();
+  ctx.fillStyle='#3f2d20'; rr(-14,-29,28,8,4); ctx.fill();
+  // 눈, 볼터치, 미소
+  ctx.fillStyle='#1e293b'; ctx.beginPath(); ctx.arc(5,-20,2.2,0,7); ctx.fill();
+  ctx.fillStyle='rgba(244,114,182,.4)'; ctx.beginPath(); ctx.arc(9,-15,3,0,7); ctx.fill();
+  ctx.strokeStyle='#1e293b'; ctx.lineWidth=1.8;
+  ctx.beginPath(); ctx.arc(6,-15,4,.4,2.5); ctx.stroke();
+  ctx.restore();
+}
+
+function drawObstacle(o) {
+  if (o.type==='rock') {
+    shadow(o.x, GROUND, 20);
+    const g = ctx.createLinearGradient(o.x,o.y-o.h,o.x,o.y);
+    g.addColorStop(0,'#94a3b8'); g.addColorStop(1,'#64748b');
+    ctx.fillStyle=g;
+    ctx.beginPath(); ctx.moveTo(o.x-o.w/2,o.y); ctx.lineTo(o.x-8,o.y-o.h);
+    ctx.lineTo(o.x+12,o.y-o.h+6); ctx.lineTo(o.x+o.w/2,o.y); ctx.closePath(); ctx.fill();
+    ctx.fillStyle='rgba(255,255,255,.35)';
+    ctx.beginPath(); ctx.moveTo(o.x-8,o.y-o.h); ctx.lineTo(o.x+2,o.y-10);
+    ctx.lineTo(o.x+12,o.y-o.h+6); ctx.closePath(); ctx.fill();
+  } else if (o.type==='puddle') {
+    ctx.fillStyle='#38bdf8';
+    ctx.beginPath(); ctx.ellipse(o.x,o.y-4,o.w/2,8,0,0,7); ctx.fill();
+    ctx.fillStyle='rgba(255,255,255,.6)';
+    ctx.beginPath(); ctx.ellipse(o.x-10,o.y-6,11,2.6,0,0,7); ctx.fill();
+  } else { // 갈매기
+    const flap = Math.sin(o.f*.35)*9;
+    ctx.fillStyle='#fff';
+    ctx.beginPath(); ctx.ellipse(o.x,o.y-10,14,8,0,0,7); ctx.fill();
+    ctx.strokeStyle='#f8fafc'; ctx.lineWidth=5.5; ctx.lineCap='round';
+    ctx.beginPath(); ctx.moveTo(o.x-4,o.y-12); ctx.lineTo(o.x-19,o.y-14-flap); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(o.x+4,o.y-12); ctx.lineTo(o.x+17,o.y-14-flap); ctx.stroke();
+    ctx.fillStyle='#f59e0b';
+    ctx.beginPath(); ctx.moveTo(o.x+13,o.y-11); ctx.lineTo(o.x+22,o.y-9); ctx.lineTo(o.x+13,o.y-6); ctx.closePath(); ctx.fill();
+    ctx.fillStyle='#1e293b'; ctx.beginPath(); ctx.arc(o.x+8,o.y-12,1.6,0,7); ctx.fill();
+  }
+}
+
+function drawItem(it) {
+  const bob = Math.sin(frame*.1 + it.x*.05)*4;
+  const y = it.y + bob;
+  ctx.save();
+  if (it.type==='flower') {
+    ctx.shadowColor='rgba(249,168,212,.8)'; ctx.shadowBlur=10;
+    ctx.translate(it.x,y);
+    for(let i=0;i<5;i++){ ctx.rotate(1.2566);
+      ctx.fillStyle='#f9a8d4'; ctx.beginPath(); ctx.ellipse(0,-8,5,8,0,0,7); ctx.fill(); }
+    ctx.fillStyle='#fde047'; ctx.beginPath(); ctx.arc(0,0,4,0,7); ctx.fill();
+  } else if (it.type==='coin') {
+    ctx.shadowColor='rgba(253,224,71,.9)'; ctx.shadowBlur=12;
+    ctx.fillStyle='#f59e0b'; ctx.beginPath(); ctx.arc(it.x,y,12,0,7); ctx.fill();
+    ctx.shadowBlur=0;
+    ctx.fillStyle='#fde047'; ctx.beginPath(); ctx.arc(it.x,y,9,0,7); ctx.fill();
+    ctx.fillStyle='#a16207'; ctx.font='bold 9px Pretendard, sans-serif'; ctx.textAlign='center';
+    ctx.fillText('100', it.x, y+3);
+  } else {
+    ctx.shadowColor='rgba(239,68,68,.7)'; ctx.shadowBlur=10;
+    rr(it.x-13,y-10,26,20,5); ctx.fillStyle='#dc2626'; ctx.fill();
+    ctx.shadowBlur=0;
+    ctx.fillStyle='#fde047'; ctx.font='bold 11px Pretendard, sans-serif'; ctx.textAlign='center';
+    ctx.fillText('福', it.x, y+4);
+  }
+  ctx.restore();
+}
+
+function drawGate(g) {
+  const x = g.x;
+  if (g.school) {  // 학교 건물 (시계탑 + 깃발)
+    ctx.fillStyle='#f8fafc'; rr(x-10,GROUND-160,230,160,[12,12,0,0]); ctx.fill();
+    ctx.fillStyle='#ef4444'; rr(x-20,GROUND-176,250,18,6); ctx.fill();
+    ctx.fillStyle='#e2e8f0'; ctx.fillRect(x+90,GROUND-212,30,36);
+    ctx.fillStyle='#ef4444';
+    ctx.beginPath(); ctx.moveTo(x+85,GROUND-212); ctx.lineTo(x+105,GROUND-232); ctx.lineTo(x+125,GROUND-212); ctx.closePath(); ctx.fill();
+    ctx.fillStyle='#fff'; ctx.beginPath(); ctx.arc(x+105,GROUND-195,8,0,7); ctx.fill();
+    ctx.strokeStyle='#334155'; ctx.lineWidth=2;
+    ctx.beginPath(); ctx.moveTo(x+105,GROUND-195); ctx.lineTo(x+105,GROUND-201); ctx.stroke();
+    ctx.strokeStyle='#94a3b8'; ctx.beginPath(); ctx.moveTo(x+105,GROUND-232); ctx.lineTo(x+105,GROUND-246); ctx.stroke();
+    ctx.fillStyle='#f472b6'; ctx.beginPath(); ctx.moveTo(x+105,GROUND-246); ctx.lineTo(x+122,GROUND-241); ctx.lineTo(x+105,GROUND-236); ctx.closePath(); ctx.fill();
+    ctx.fillStyle='#7dd3fc';
+    for(let r=0;r<2;r++) for(let c=0;c<4;c++){ rr(x+12+c*54, GROUND-140+r*60, 34, 38, 4); ctx.fill(); }
+    ctx.fillStyle='#a16207'; rr(x+96,GROUND-46,36,46,[6,6,0,0]); ctx.fill();
+    ctx.fillStyle='#1e3a8a'; ctx.font='bold 20px Pretendard, sans-serif'; ctx.textAlign='center';
+    ctx.fillText('산양중학교', x+105, GROUND-184);
+    ctx.font='24px sans-serif'; ctx.fillText('🌸', x-8, GROUND-186); ctx.fillText('🌸', x+220, GROUND-186);
+  } else {        // 버스 정류장 표지판
+    shadow(x, GROUND, 14);
+    ctx.fillStyle='#64748b'; rr(x-3,GROUND-120,6,120,3); ctx.fill();
+    ctx.fillStyle='#2563eb'; rr(x-44,GROUND-154,88,40,10); ctx.fill();
+    ctx.fillStyle='rgba(255,255,255,.2)'; rr(x-44,GROUND-154,88,14,[10,10,0,0]); ctx.fill();
+    ctx.fillStyle='#fff'; ctx.font='bold 15px Pretendard, sans-serif'; ctx.textAlign='center';
+    ctx.fillText('🚌 정류장', x, GROUND-128);
+    ctx.fillStyle='#fde047'; ctx.font='bold 12px Pretendard, sans-serif';
+    ctx.fillText('QUIZ!', x, GROUND-160);
+  }
+}
+
+function drawHUD() {
+  // 점수/목숨 카드
+  ctx.fillStyle='rgba(255,255,255,.85)'; rr(14,14,236,64,16); ctx.fill();
+  ctx.fillStyle='#0f172a'; ctx.font='800 18px Pretendard, sans-serif'; ctx.textAlign='left';
+  ctx.fillText('점수 ' + Math.floor(score), 28, 39);
+  ctx.font='15px sans-serif';
+  ctx.fillText('❤️'.repeat(Math.max(0,lives)) + '🤍'.repeat(Math.max(0,3-lives)), 28, 64);
+  ctx.font='600 14px Pretendard, sans-serif'; ctx.fillStyle='#475569';
+  ctx.fillText(`🚌 ${quizIdx}/${QUIZ_COUNT}`, 158, 64);
+  // 진행 바 (충무교 → 산양중)
+  const total = QUIZ_COUNT+1;
+  const segLen = Math.max(1, nextGateDist - segStart);
+  const seg = Math.min(1, Math.max(0, (dist - segStart) / segLen));
+  const prog = Math.min(1, (quizIdx + seg) / total);
+  ctx.fillStyle='rgba(255,255,255,.85)'; rr(280,20,300,16,8); ctx.fill();
+  const pg = ctx.createLinearGradient(280,0,580,0);
+  pg.addColorStop(0,'#f472b6'); pg.addColorStop(1,'#db2777');
+  ctx.fillStyle=pg; rr(280,20,Math.max(16,300*prog),16,8); ctx.fill();
+  ctx.fillStyle='#0f172a'; ctx.font='700 11px Pretendard, sans-serif';
+  ctx.textAlign='left'; ctx.fillText('충무교', 280, 52);
+  ctx.textAlign='right'; ctx.fillText('산양중 🏫', 580, 52);
+}
+
+function draw() {
+  ctx.save();
+  if (shakeT>0) ctx.translate((Math.random()-.5)*8,(Math.random()-.5)*8);
+  drawBG();
+  if (gate) drawGate(gate);
+  items.forEach(drawItem);
+  obstacles.forEach(drawObstacle);
+  drawPlayer();
+  ctx.restore();
+  if (state==='run'||state==='quiz'||state==='pause') drawHUD();
+}
+
+/* roundRect 미지원 브라우저 폴리필 */
+if (!CanvasRenderingContext2D.prototype.roundRect) {
+  CanvasRenderingContext2D.prototype.roundRect = function(x,y,w,h,r){
+    if (typeof r === 'number') r = [r,r,r,r];
+    else if (Array.isArray(r) && r.length<4) r = [r[0]||0, r[1]||r[0]||0, r[2]||r[0]||0, r[3]||r[1]||r[0]||0];
+    this.moveTo(x+r[0],y);
+    this.lineTo(x+w-r[1],y); this.arcTo(x+w,y,x+w,y+r[1],r[1]);
+    this.lineTo(x+w,y+h-r[2]); this.arcTo(x+w,y+h,x+w-r[2],y+h,r[2]);
+    this.lineTo(x+r[3],y+h); this.arcTo(x,y+h,x,y+h-r[3],r[3]);
+    this.lineTo(x,y+r[0]); this.arcTo(x,y,x+r[0],y,r[0]);
+    return this;
+  };
+}
+
+reset();                             // ★ 반드시 루프 시작 전에 초기화
+(function loop(){
+  try { update(); draw(); } catch(e) { console.error(e); }
+  requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>
