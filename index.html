@@ -94,6 +94,22 @@
   #rankList li.me { background:#fdf2f8; outline:2px solid #f472b6; }
   #rankList .empty { color:#94a3b8; justify-content:center; }
 
+  /* 모바일 점프 버튼 (터치 기기에서만 표시) */
+  #jumpBtn { position:fixed; left:50%; transform:translateX(-50%);
+    bottom:calc(env(safe-area-inset-bottom) + 14px); z-index:6;
+    width:min(72vw,340px); min-height:64px; border:none; border-radius:40px;
+    background:linear-gradient(180deg,rgba(96,165,250,.95),rgba(37,99,235,.95));
+    color:#fff; font-family:inherit; font-weight:800; font-size:clamp(18px,5vw,22px);
+    box-shadow:0 5px 0 #1d4ed8, 0 12px 24px -8px rgba(37,99,235,.6);
+    touch-action:manipulation; user-select:none; -webkit-user-select:none; }
+  #jumpBtn:active { transform:translateX(-50%) translateY(4px); box-shadow:0 1px 0 #1d4ed8; }
+  @media (hover:hover) and (pointer:fine) { #jumpBtn { display:none; } }
+
+  /* 세로로 들었을 때 회전 안내 */
+  .rotateHint { display:none; margin-top:14px; font-size:clamp(12px,3.2vw,14px);
+    color:#fde047; font-weight:700; }
+  @media (orientation:portrait) and (pointer:coarse) { .rotateHint { display:block; } }
+
   /* 좁은 세로 화면(스마트폰) 보정 */
   @media (max-width:520px) {
     .howto { line-height:1.7; padding:10px 14px; }
@@ -108,6 +124,7 @@
     <canvas id="game"></canvas>
     <button id="pauseBtn" aria-label="일시정지">⏸</button>
   </div>
+  <button id="jumpBtn" aria-label="점프">⬆ 점프!</button>
 
   <!-- 시작 화면 -->
   <div id="startScr" class="overlay">
@@ -125,6 +142,7 @@
       🚌 버스정류장을 지날 때마다 산양중 퀴즈가 나와요!<br>
       퀴즈 5개를 모두 지나면 학교에 도착합니다.
     </div>
+    <div class="rotateHint">📱 폰을 가로로 돌리면 화면이 더 커져요!</div>
     <div class="credit">통영시 산양중학교 · 2027학년도 신입생 홍보</div>
   </div>
 
@@ -185,8 +203,8 @@ let W = 900, H = 500;
 function resize() {
   const ww = window.innerWidth, wh = window.innerHeight;
   const ratio = 9/5;
-  if (ww/wh > ratio) { H = Math.min(wh - 24, 560); W = H*ratio; }
-  else { W = ww - 16; H = W/ratio; }
+  if (ww/wh > ratio) { H = Math.min(wh - 12, 640); W = H*ratio; }
+  else { W = ww - 6; H = W/ratio; }
   const dpr = Math.min(2, window.devicePixelRatio || 1);   // 레티나/고해상도 대응
   cv.width = 900*dpr; cv.height = 500*dpr;
   ctx.setTransform(dpr,0,0,dpr,0,0);
@@ -244,7 +262,7 @@ function reset() {
   player = { x:130, y:GROUND, vy:0, onGround:true };
   obstacles = []; items = []; petals = []; gate = null;
   clouds = Array.from({length:5},()=>({x:Math.random()*900,y:40+Math.random()*110,s:.6+Math.random()*.8}));
-  dist = 0; score = 0; lives = 3; speed = 5.2;
+  dist = 0; score = 0; lives = 3; speed = 4.5;
   quizOrder = shuffle(QUIZ.map((_,i)=>i)).slice(0, QUIZ_COUNT);
   quizIdx = 0; nextGateDist = 350; segStart = 0; arrived = false;
   correctCnt = 0; itemCnt = 0; itemScore = 0; inv = 0; shakeT = 0;
@@ -260,6 +278,7 @@ window.addEventListener('keydown', e=>{
   if (e.code==='Escape'||e.code==='KeyP'){ togglePause(); }
 });
 cv.addEventListener('pointerdown', jump);
+document.getElementById('jumpBtn').addEventListener('pointerdown', e=>{ e.preventDefault(); jump(); });
 
 /* ================= 일시정지 ================= */
 const pauseScr = document.getElementById('pauseScr');
@@ -293,7 +312,7 @@ function update() {
   frame++;
   if (state !== 'run') return;
   dist += speed * 0.14;
-  speed = Math.min(9, 5.2 + dist/300);
+  speed = Math.min(7.5, 4.5 + dist/400);   // 시작 속도·최고 속도 하향
   if (inv > 0) inv--;
   if (shakeT > 0) shakeT--;
 
@@ -735,8 +754,17 @@ if (!CanvasRenderingContext2D.prototype.roundRect) {
 }
 
 reset();                             // ★ 반드시 루프 시작 전에 초기화
-(function loop(){
-  try { update(); draw(); } catch(e) { console.error(e); }
+/* 고정 시간 간격 루프: 60Hz/120Hz 어떤 화면에서도 같은 속도로 동작 */
+const STEP = 1000/60;
+let lastT = performance.now(), acc = 0;
+(function loop(now){
+  if (now === undefined) now = performance.now();
+  acc += now - lastT; lastT = now;
+  if (acc > 100) acc = 100;          // 탭 전환 등 긴 공백 방지
+  try {
+    while (acc >= STEP) { update(); acc -= STEP; }
+    draw();
+  } catch(e) { console.error(e); }
   requestAnimationFrame(loop);
 })();
 </script>
