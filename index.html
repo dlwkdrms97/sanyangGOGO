@@ -262,7 +262,7 @@ function reset() {
   player = { x:130, y:GROUND, vy:0, onGround:true };
   obstacles = []; items = []; petals = []; gate = null;
   clouds = Array.from({length:5},()=>({x:Math.random()*900,y:40+Math.random()*110,s:.6+Math.random()*.8}));
-  dist = 0; score = 0; lives = 3; speed = 4.5;
+  dist = 0; score = 0; lives = 3; speed = 2.5;
   quizOrder = shuffle(QUIZ.map((_,i)=>i)).slice(0, QUIZ_COUNT);
   quizIdx = 0; nextGateDist = 350; segStart = 0; arrived = false;
   correctCnt = 0; itemCnt = 0; itemScore = 0; inv = 0; shakeT = 0;
@@ -277,7 +277,11 @@ window.addEventListener('keydown', e=>{
   if (e.code==='Space'||e.code==='ArrowUp'){ e.preventDefault(); jump(); }
   if (e.code==='Escape'||e.code==='KeyP'){ togglePause(); }
 });
-cv.addEventListener('pointerdown', jump);
+/* 화면 아무 곳이나(여백 포함) 터치해도 점프 — 버튼·입력창·퀴즈/랭킹 창 터치는 제외 */
+document.addEventListener('pointerdown', e=>{
+  if (e.target.closest('button, input, a, #quizBox, #rankBoard')) return;
+  jump();
+});
 document.getElementById('jumpBtn').addEventListener('pointerdown', e=>{ e.preventDefault(); jump(); });
 
 /* ================= 일시정지 ================= */
@@ -312,7 +316,7 @@ function update() {
   frame++;
   if (state !== 'run') return;
   dist += speed * 0.14;
-  speed = Math.min(7.5, 4.5 + dist/400);   // 시작 속도·최고 속도 하향
+  speed = Math.min(6, 2.5 + dist/400);   // 시작 2.5 → 최고 6
   if (inv > 0) inv--;
   if (shakeT > 0) shakeT--;
 
